@@ -1,0 +1,43 @@
+services:
+  api:
+    build: .
+    image: smart-survey-tool:latest
+    command: uvicorn smart_survey.api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      SST_ENVIRONMENT: production
+      SST_DATABASE_URL: sqlite:////app/data/smart_survey.db
+      SST_ADMIN_API_KEY: ${SST_ADMIN_API_KEY:-change-me-in-production}
+      SST_PUBLIC_BASE_URL: ${SST_PUBLIC_BASE_URL:-http://localhost:8000}
+      SST_CORS_ORIGINS: ${SST_CORS_ORIGINS:-http://localhost:8501}
+    volumes:
+      - survey-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ui:
+    image: smart-survey-tool:latest
+    depends_on:
+      api:
+        condition: service_healthy
+    command: >
+      streamlit run app.py
+      --server.port 8501
+      --server.address 0.0.0.0
+      --server.headless true
+      --browser.gatherUsageStats false
+    ports:
+      - "8501:8501"
+    environment:
+      SST_ENVIRONMENT: production
+      SST_DATABASE_URL: sqlite:////app/data/smart_survey.db
+      SST_PUBLIC_BASE_URL: ${SST_PUBLIC_BASE_URL:-http://localhost:8000}
+    volumes:
+      - survey-data:/app/data
+
+volumes:
+  survey-data:
